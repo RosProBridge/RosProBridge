@@ -1,0 +1,44 @@
+{
+  "id": "demo",
+  "host": "0.0.0.0:47777",
+  "published": [
+    {
+      "hosts": [
+        "127.0.0.1:47778"
+      ],
+      "topics": [
+        {
+          "name": "/string",
+          "type": "std_msgs.msg.String",
+          "qos": 200
+        },
+        {
+          "name": "/string2",
+          "type": "std_msgs.msg.String",
+          "qos": "qos_profile_sensor_data"
+        },
+        {
+          "name": "/string3",
+          "type": "std_msgs.msg.String",
+          "qos": {
+            "reliability": "RELIABLE",
+            "history": "KEEP_LAST",
+            "depth": 14,
+            "durability": "VOLATILE",
+            "liveliness": "AUTOMATIC"
+          }
+        },
+        {
+          "name": "/string4",
+          "type": "std_msgs.msg.String",
+          "rate": 10
+        },
+        {
+          "name": "/string5",
+          "type": "std_msgs.msg.String",
+          "latch": true
+        }
+      ]
+    }
+  ]
+}
