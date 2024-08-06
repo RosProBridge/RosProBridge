@@ -14,9 +14,9 @@ if TYPE_CHECKING:
 
 class BridgePublisher(ABC):
     def __init__(self, bridge: Union["ProBridgeRos1", "ProBridgeRos2"]) -> None:
+        self.__ignorable_topics = []
         self.bridge = bridge
         self.publishers = {}
-
         self.tcp_server = BridgeServerTCP(bridge.host, self.on_msg)
         self.udp_server = BridgeServerUDP(bridge.host, self.on_msg)
 
@@ -40,18 +40,44 @@ class BridgePublisher(ABC):
             # parse bridge msg
             message = gzip.decompress(msg).decode("ascii").rstrip()
             b_msg = json.loads(message)
-
-            # allow to recive messages from ROS2 in ROS1 | from ROS1 in ROS2
-            if b_msg.get('v') != os.environ['ROS_VERSION']:
-                self.override_msg(b_msg)
         except Exception as e:
-            self.bridge.logwarn("Invalid received message " + str(e))
+            self.bridge.logwarn("Invalid received message. Failed to parse: {}".format(str(e)))
+            return
+
+        # allow to recive messages from ROS2 in ROS1 | from ROS1 in ROS2
+        if b_msg.get("v") != os.environ["ROS_VERSION"]:
+            try:
+                self.override_msg(b_msg)
+            except Exception as e:
+                self.bridge.logwarn("Invalid received message. Failed to override message: {}".format(str(e)))
+                return
+
+        if b_msg["n"] in self.__ignorable_topics:
+            return
 
         publisher = self.publishers.get(b_msg["n"])
         if publisher is None:
-            publisher = self.create_pub(b_msg)
+            try:
+                publisher = self.create_pub(b_msg)
+            except Exception as e:
+                self.bridge.logerr(
+                    "Failed to create a bridge publisher to the topic: {}. Make sure the workspace with messages is sourced. Added to ignore list".format(
+                        b_msg.get("n", "")
+                    )
+                )
+                self.__ignorable_topics.append(b_msg.get("n"))
+                return
 
-        ros_msg = self.dict2ros(b_msg)
+        try:
+            ros_msg = self.dict2ros(b_msg)
+        except:
+            self.bridge.logerr(
+                "Failed to convert dictionary to ROS message. Make sure the message is correct. Type: {}. Added to ignore list".format(
+                    b_msg.get("t", "")
+                )
+            )
+            self.__ignorable_topics.append(b_msg.get("n"))
+            return
 
         publisher.publish(ros_msg)  # type: ignore
 
