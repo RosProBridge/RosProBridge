@@ -12,11 +12,17 @@ if TYPE_CHECKING:
 
 class BridgeSubscriberRos2(BridgeSubscriber):
     def __init__(self, bridge: "ProBridgeRos2", clients, settings) -> None:
-        self.msg_qos = settings["qos"]
+        self.msg_qos = settings.get("qos")
         super().__init__(bridge=bridge, clients=clients, settings=settings)
 
     def create_sub(self, bridge: "ProBridgeRos2", settings: dict):
-        qos_profile = get_qos(settings["qos"])
+        if self.msg_qos is None:
+            self.msg_qos = "qos_profile_system_default"
+            self.bridge.logwarn(
+                "QOS Profile was not set in config for topic {}. Set default 'qos_profile_system_default'".format(settings.get("name", ""))
+            )
+
+        qos_profile = get_qos(self.msg_qos)
         bridge.create_subscription(
             msg_type=locate(settings["type"]), topic=settings["name"], callback=self.msg_callback, qos_profile=qos_profile
         )
