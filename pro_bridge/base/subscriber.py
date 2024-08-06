@@ -2,7 +2,7 @@ import gzip
 
 from urllib.parse import SplitResult
 from abc import ABC, abstractmethod
-from typing import Union, Optional, List, TYPE_CHECKING
+from typing import Union, Optional, List, Dict, TYPE_CHECKING
 from base.client import BridgeClientTCP, BridgeClientUDP
 
 if TYPE_CHECKING:
@@ -13,7 +13,7 @@ MAX_UDP_SIZE = 1450
 
 
 class BridgeSubscriber(ABC):
-    msg_qos = None
+    msg_qos: Optional[Union[str, int, Dict[str,str]]]
     msg = None
 
     def __init__(self, bridge: Union["ProBridgeRos1", "ProBridgeRos2"], clients: List[SplitResult], settings: dict) -> None:
