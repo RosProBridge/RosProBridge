@@ -1,6 +1,8 @@
 import rospy
 import json
+import gzip
 
+from io import BytesIO
 from pydoc import locate
 from base.ros1.tools import convert_ros_message_to_dictionary
 from base.subscriber import BridgeSubscriber
@@ -11,9 +13,9 @@ if TYPE_CHECKING:
 
 
 class BridgeSubscriberRos1(BridgeSubscriber):
-    def __init__(self, bridge: "ProBridgeRos1", clients, settings) -> None:
+    def __init__(self, bridge: "ProBridgeRos1", tcp_clients, settings) -> None:
         self.msg_qos = settings.get("qos")
-        super().__init__(bridge=bridge, clients=clients, settings=settings)
+        super().__init__(bridge=bridge, tcp_clients=tcp_clients, settings=settings)
 
     def create_sub(self, bridge: "ProBridgeRos1", settings: dict):
         if settings["name"] == "/tf_static":
@@ -25,6 +27,7 @@ class BridgeSubscriberRos1(BridgeSubscriber):
         rospy.loginfo("Create publisher in topic: " + settings["name"])
 
     def listen_tf_static(self, event):
+        # TODO: Should be deleted
         from tf2_msgs.msg import TFMessage
         try:
             ros_msg = rospy.wait_for_message("/tf_static", topic_type=TFMessage)
@@ -33,23 +36,33 @@ class BridgeSubscriberRos1(BridgeSubscriber):
         self.msg_callback(ros_msg)
 
     def prepare_msg(self, m_type, m_name, m_qos, m_data):
-        d = self.convert_msg(m_data)
         j_data = {
             "v": 1,
             "t": m_type,
             "n": m_name,
-            "d": d,
+            "c": self.compression_level
         }
         if m_qos is not None:
             j_data["q"] = m_qos  # Allow to publish messages from ros1 to ros2 with specified QOS
 
-        return json.dumps(j_data)
+        json_compressed = gzip.compress(
+            json.dumps(j_data).encode('utf-8'),
+            compresslevel=1
+        )
+        buffer = BytesIO()
+        m_data.serialize(buffer)
+
+        if self.compression_level >0:
+            serialized_message = gzip.compress(buffer.getvalue(), compresslevel=self.compression_level)
+        else:
+            serialized_message = buffer.getvalue()
+
+        json_length = len(json_compressed).to_bytes(length=2, byteorder='little')
+        return json_length + json_compressed + serialized_message
 
     def getrostime(self) -> float:
         return rospy.get_rostime().to_sec()
 
-    def convert_msg(self, m_data):
-        return convert_ros_message_to_dictionary(m_data)
 
     def is_latch_msg(self, msg) -> bool:
         if self.is_latch is not None:

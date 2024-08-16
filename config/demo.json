@@ -4,38 +4,40 @@
   "published": [
     {
       "hosts": [
-        "127.0.0.1:47778"
+        "127.0.0.1:47776",
+        "127.0.0.1:47779"
       ],
       "topics": [
         {
-          "name": "/string",
-          "type": "std_msgs.msg.String",
-          "qos": 200
+          "name": "/lidar/fl/rslidar_points",
+          "type": "sensor_msgs.msg.PointCloud2",
+          "qos": "qos_profile_sensor_data",
+          "compression_level": 1
         },
         {
-          "name": "/string2",
-          "type": "std_msgs.msg.String",
-          "qos": "qos_profile_sensor_data"
+          "name": "/stz/occupancy",
+          "type": "nav_msgs.msg.OccupancyGrid",
+          "qos": 10
         },
         {
-          "name": "/string3",
-          "type": "std_msgs.msg.String",
+          "name": "/sensing/lidar/concatenated/pointcloud",
+          "type": "sensor_msgs.msg.PointCloud2",
           "qos": {
-            "reliability": "RELIABLE",
+            "reliability": "BEST_EFFORT",
             "history": "KEEP_LAST",
-            "depth": 14,
+            "depth": 1,
             "durability": "VOLATILE",
             "liveliness": "AUTOMATIC"
           }
         },
         {
-          "name": "/string4",
-          "type": "std_msgs.msg.String",
-          "rate": 10
+          "name": "/image_raw",
+          "type": "sensor_msgs.msg.Image",
+          "compression_level": 3
         },
         {
-          "name": "/string5",
-          "type": "std_msgs.msg.String",
+          "name": "/header",
+          "type": "std_msgs.msg.Header",
           "latch": true
         }
       ]

@@ -1,10 +1,18 @@
 # ProBridge
 
-Модуль для обеспечения транспорта сообщений ROS в обход DDS (может пригодиться для интеграции с системами без ROS и работы ROS через беспроводную связь), собирает сообщения на одной машине, отправляет через UDP на 
-машины из списка адресов, с другой стороны получает сообщения и публикует их в обратно в ROS.
+A module for providing transport of ROS messages bypassing DDS.
+Collects messages on one machine, sends them via 0MQ to machines from a list of addresses, on the other side receives messages and publishes them back to ROS.
 
+- [Config example](#1-config-example)
+- [Advanced params](#2-advanced-params)
+  - [qos](#21-qos)
+  - [rate](#22-rate)
+  - [compression_level](#23-compression_level)
+
+### 1. Config Example
 ----
-Пример конфига:
+Config example:
+
 ```json
 {
   "id": "some_id_value",
@@ -12,29 +20,63 @@
   "published": [
     {
       "hosts":["192.168.1.1:47777"],
-      "topics":[
         {
-          "name": "/odometry/imu",
-          "type": "sensor_msgs.msg.Imu",
-          "qos": "qos_profile_sensor_data"
+          "name": "/lidar/fl/rslidar_points",
+          "type": "sensor_msgs.msg.PointCloud2",
+          "qos": 10,
+          "compression_level": 1
         },
-        {
-          "name": "/odometry/nav_sat",
-          "type": "nav_msgs.msg.Path",
-          "qos": "qos_profile_system_default"
-        }
-      ]
-    },
-    {
-      "hosts":["192.168.1.1:47777"],
-      "topics":[
-        {
-          "name": "/odometry/odom",
-          "type": "nav_msgs.msg.Odometry",
-          "qos": "qos_profile_sensor_data"
-        }
-      ]
     }
   ]
 }
 ```
+
+### 2. Advanced params
+
+#### 2.1 qos
+
+qos value may be as int
+```
+  "qos": 100
+  "qos": 200
+  ...
+```
+
+as string:
+```
+  "qos": "qos_profile_parameters"
+  "qos": "qos_profile_sensor_data"
+  "qos": "qos_profile_services_default"
+  "qos": "qos_profile_system_default"
+  "qos": "qos_profile_unknown"
+```
+
+as dict:
+```json
+  "qos" {
+    "reliability": "BEST_EFFORT", # SYSTEM_DEFAULT | BEST_EFFORT | RELIABLE | UNKNOWN
+    "history": "KEEP_LAST", # KEEP_ALL | KEEP_LAST | SYSTEM_DEFAULT | UNKNOWN
+    "depth": 1,
+    "durability": "VOLATILE", # SYSTEM_DEFAULT | TRANSIENT_LOCAL | VOLATILE | UNKNOWN
+    "liveliness": "AUTOMATIC" # SYSTEM_DEFAULT | AUTOMATIC | MANUAL_BY_TOPIC | UNKNOWN
+  }
+```
+
+Ensure that the "qos" parameter can be used to allow publishing messages from ROS1 to ROS2 with the specified QoS settings.
+
+#### 2.2 rate
+
+```
+"rate": 10
+```
+
+Target posting frequency
+
+#### 2.3 compression_level:
+
+```
+"compression_level": 0 # range[0:9]
+```
+
+If the value is 0, there will be no compression; otherwise, the ROS message will be compressed
+
