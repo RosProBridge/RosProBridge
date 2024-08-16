@@ -2,6 +2,7 @@ import urllib.parse
 import json
 
 from abc import ABC, abstractmethod
+from base.client import BridgeClientTCP
 
 class ProBridgeBase(ABC):
     def __init__(self, cfg: dict):
@@ -16,8 +17,13 @@ class ProBridgeBase(ABC):
             for h in p['hosts']:
                 clients.append(urllib.parse.urlsplit('//' + h))
 
+            tcp_clients = []
+            for client in clients:
+                tcp_client = BridgeClientTCP(client, None)
+                tcp_clients.append(tcp_client)
+
             for t in p['topics']:
-                self.create_bridge_subscriber(self, clients, t)
+                self.create_bridge_subscriber(self, tcp_clients, t)
 
     @abstractmethod
     def destroy(self, *args):

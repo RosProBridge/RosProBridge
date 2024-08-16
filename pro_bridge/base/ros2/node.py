@@ -5,11 +5,6 @@ from base.node import ProBridgeBase
 from base.ros2.publisher import BridgePublisherRos2
 from base.ros2.subscriber import BridgeSubscriberRos2
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from base.ros2.node import ProBridgeRos2
-
 
 class ProBridgeRos2(ProBridgeBase, Node):
     def __init__(self, cfg: dict):

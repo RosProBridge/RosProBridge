@@ -1,12 +1,31 @@
 from rclpy.publisher import Publisher
-from rosidl_runtime_py import set_message_fields
+from rclpy.serialization import deserialize_message
 from pydoc import locate
 from base.publisher import BridgePublisher
 from base.ros2.tools import get_qos
 from typing import TYPE_CHECKING
+from rosidl_parser.definition import NamespacedType, BasicType, UnboundedString, UnboundedSequence, Array
+from std_msgs.msg import Header
 
 if TYPE_CHECKING:
     from base.ros2.node import ProBridgeRos2
+
+FIXED_TYPES = {
+    'int8': 1,
+    'int16': 2,
+    'int32': 4,
+    'int64': 8,
+    'uint8': 1,
+    'uint16': 2,
+    'uint32': 4,
+    'uint64': 8,
+    'float': 4,
+    'float64': 8,
+    'boolean': 1,
+    'double': 8
+}
+
+NOT_FIXED_SIZE = ['string']
 
 
 class BridgePublisherRos2(BridgePublisher):
@@ -22,30 +41,66 @@ class BridgePublisherRos2(BridgePublisher):
         self.bridge.loginfo('Subscribed on topic "' + b_msg["n"] + '".')
         return publisher
 
-    def dict2ros(self, msg):
-        ros_msg = locate(msg["t"])()  # type: ignore
-        set_message_fields(ros_msg, msg["d"])
-        return ros_msg
+    def deserialize_ros_message(self, binary_msg, msg_type):
+        ros_msg = locate(msg_type)
+        return deserialize_message(binary_msg, ros_msg)
 
-    def override_msg(self, msg: dict):
-        def override(msg: dict):
-            if not isinstance(msg, dict):
-                return
-            for key, value in msg.items():
-                if key == "header" and msg["header"].get("seq") is not None:
-                    msg["header"].pop("seq")
-                    msg["header"]["stamp"]["sec"] = msg["header"]["stamp"].pop("secs")
-                    msg["header"]["stamp"]["nanosec"] = msg["header"]["stamp"].pop("nsecs")
-                elif key == "clock" and msg["clock"].get("secs") is not None:
-                    msg["clock"]["sec"] = msg["clock"].pop("secs")
-                    msg["clock"]["nanosec"] = msg["clock"].pop("nsecs")
+    def override_msg(self, msg_type: str, msg_packet: bytes):
+        def apply_padding(size, msg_packet, byte_idx):
+            padding_bytes = (size - (byte_idx % size)) % size
+            if padding_bytes != 0:
+                msg_packet[byte_idx:byte_idx] =bytearray([0x00] * padding_bytes)
+                byte_idx += padding_bytes
+            return byte_idx
 
-                elif isinstance(value, list):
-                    for v in msg[key]:
-                        override(v)
-            return msg
+        def override(msg_type: str, msg_packet, byte_idx):
+            message = locate(msg_type)
 
-        if msg["t"] == "tf.msg.tfMessage":
-            msg["t"] = "tf2_msgs.msg.TFMessage"
+            if (type(message) == type(Header)):
+                del msg_packet[byte_idx:byte_idx + 4]
 
-        override(msg["d"])
+            for field in message.SLOT_TYPES:
+                if isinstance(field, NamespacedType):
+                    field_type = ".".join(field.namespaced_name())
+                    byte_idx = override(field_type, msg_packet, byte_idx)
+                elif isinstance(field, BasicType):
+                    if field.typename not in FIXED_TYPES:
+                        raise Exception
+                    fixed_size = FIXED_TYPES[field.typename]
+                    if fixed_size != 1:
+                        byte_idx = apply_padding(fixed_size, msg_packet, byte_idx)
+                    byte_idx += fixed_size
+                elif isinstance(field, UnboundedString):
+                    length_of_string = int.from_bytes(msg_packet[byte_idx:byte_idx + 4], byteorder='little')
+                    msg_packet[byte_idx:byte_idx + 4] = int.to_bytes(length_of_string + 1, length=4, byteorder='little')
+                    byte_idx += 4 +length_of_string
+                    msg_packet.insert(byte_idx, 0x00) # insert empty byte. ROS2 string always ends with 0x00
+                    byte_idx += 1
+                elif isinstance(field, UnboundedSequence):
+                    byte_idx = apply_padding(4, msg_packet, byte_idx)
+                    number_of_sequences = int.from_bytes(msg_packet[byte_idx:byte_idx + 4], byteorder='little')
+                    byte_idx += 4
+
+                    if hasattr(field.value_type, 'namespaced_name'):
+                        ctype = ".".join(field.value_type.namespaced_name()) #complex type
+                        for i in range(number_of_sequences):
+                            byte_idx = override(ctype, msg_packet, byte_idx)
+                    else:
+                        if field.value_type.typename in FIXED_TYPES: #simple type
+                            value_size = FIXED_TYPES[field.value_type.typename]
+                            byte_idx = apply_padding(value_size, msg_packet, byte_idx)
+
+                            # for i in range(number_of_sequences):
+                            #     byte_idx = apply_padding(value_size, msg_packet, byte_idx)
+                            byte_idx += value_size * number_of_sequences
+
+            return byte_idx
+
+        msg_packet = bytearray(msg_packet)
+
+        byte_idx = 0
+        byte_idx = override(msg_type, msg_packet, byte_idx)
+
+        msg_packet[0:0] = bytearray([0x00, 0x01, 0x00, 0x00]) # add RMW Header
+
+        return bytes(msg_packet)

@@ -11,7 +11,7 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
     ],
-    install_requires=['setuptools'],
+    install_requires=['setuptools', 'pyzmq'],
     zip_safe=True,
     maintainer='pro',
     maintainer_email='aleksandr.pronin@npo-at.com',
