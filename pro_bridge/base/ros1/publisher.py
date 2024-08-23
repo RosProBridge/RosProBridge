@@ -73,14 +73,20 @@ class BridgePublisherRos1(BridgePublisher):
                     del msg_packet[byte_idx] # remove empty byte from ros2 string
                     bytes_removed += 1
                 elif '[' in field:
-                    bytes_removed = remove_padding(4, msg_packet, byte_idx, bytes_removed)
                     array_field_type = field.split('[')[0]
                     number_of_sequences = field.split('[')[1][:-1]
                     if number_of_sequences == '': #complex type received
+                        bytes_removed = remove_padding(4, msg_packet, byte_idx, bytes_removed)
                         array_field_type = array_field_type.replace('/', '.msg.')
                         number_of_sequences = int.from_bytes(msg_packet[byte_idx:byte_idx + 4], byteorder='little')
                     else:
                         number_of_sequences = int(number_of_sequences)
+                        if array_field_type in FIXED_TYPES:
+                            value_size = FIXED_TYPES[array_field_type]
+                            byte_idx += value_size * number_of_sequences
+                            return byte_idx, bytes_removed
+                        else:
+                            raise NotImplementedError
 
                     byte_idx+=4
                     if array_field_type in FIXED_TYPES:
