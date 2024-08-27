@@ -19,7 +19,7 @@ class ProBridgeBase(ABC):
 
             tcp_clients = []
             for client in clients:
-                tcp_client = BridgeClientTCP(client, None)
+                tcp_client = BridgeClientTCP(client)
                 tcp_clients.append(tcp_client)
 
             for t in p['topics']:
