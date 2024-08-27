@@ -8,6 +8,7 @@ Collects messages on one machine, sends them via 0MQ to machines from a list of 
   - [qos](#21-qos)
   - [rate](#22-rate)
   - [compression_level](#23-compression_level)
+  - [latch](#24-latch)
 
 ### 1. Config Example
 ----
@@ -80,3 +81,10 @@ Target posting frequency
 
 If the value is 0, there will be no compression; otherwise, the ROS message will be compressed
 
+#### 2.4 latch:
+
+```
+"latch": false
+```
+
+If the value is true, last received ROS message will be sent to newly connected clients
