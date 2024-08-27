@@ -8,10 +8,10 @@ from urllib.parse import SplitResult
 class BridgeClientTCP:
     __connected = False
 
-    def __init__(self, host: SplitResult, cb):
+    def __init__(self, host: SplitResult, cb: list = []):
         self.__hostname = host.hostname
         self.__port = host.port
-        self.cb = cb
+        self.cb = []
 
         self.__context = zmq.Context()
         self.__socket = self.__context.socket(zmq.PUB)
@@ -26,7 +26,8 @@ class BridgeClientTCP:
             value = event.get("event")
             if value == zmq.Event.ACCEPTED:
                 self.__connected = True
-                self.cb(self)
+                for cb in self.cb:
+                    cb(self)
             elif value == zmq.Event.DISCONNECTED:
                 self.__connected = False
 

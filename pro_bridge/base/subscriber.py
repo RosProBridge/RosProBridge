@@ -21,7 +21,7 @@ class BridgeSubscriber(ABC):
         self.__tcp_clients = tcp_clients
 
         for tcp_client in self.__tcp_clients:
-            tcp_client.cb = self.on_tcp_connection
+            tcp_client.cb.append(self.on_tcp_connection)
 
         self.msg_type = settings["type"]
         self.msg_name = settings["name"]
