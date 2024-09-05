@@ -16,9 +16,16 @@ elseif (ROS_VERSION STREQUAL "2")
   DIRECTORY config ${PROJECT_NAME}
   DESTINATION share/${PROJECT_NAME}
   )
+
+  install(DIRECTORY
+    ${PROJECT_NAME}/base
+    DESTINATION lib/${PROJECT_NAME}
+  )
+
   install(PROGRAMS
     ${PROJECT_NAME}/bridge.py
     DESTINATION lib/${PROJECT_NAME}
   )
+
   ament_package()
 endif()
