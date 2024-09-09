@@ -3,14 +3,73 @@
 A module for providing transport of ROS messages bypassing DDS.
 Collects messages on one machine, sends them via 0MQ to machines from a list of addresses, on the other side receives messages and publishes them back to ROS.
 
-- [Config example](#1-config-example)
-- [Advanced params](#2-advanced-params)
-  - [qos](#21-qos)
-  - [rate](#22-rate)
-  - [compression_level](#23-compression_level)
-  - [latch](#24-latch)
+- [Dependencies](#1-dependencies)
+- [Usage](#2-usage)
+- [Config example](#3-config-example)
+- [Advanced params](#4-advanced-params)
+  - [qos](#41-qos)
+  - [rate](#42-rate)
+  - [compression_level](#43-compression_level)
+  - [latch](#44-latch)
 
-### 1. Config Example
+### 1. Dependencies
+  - CycloneDDS is required for communication between 
+    - [UnityBridge](https://github.com/RosProBridge/UnityBridge)->ROS2
+    - ROS2->[UnityBridge](https://github.com/RosProBridge/UnityBridge)
+    - ROS1->ROS2
+
+    > For communication ROS2->ROS2, it does not matter which RMW implementation is used, as long as the same RMW implementation is used on both machines.
+ 
+    For installation follow the official [ROS documentation](https://docs.ros.org/en/humble/Installation/DDS-Implementations/Working-with-Eclipse-CycloneDDS.html)
+
+### 2. Usage
+
+  ### 2.1 Installation
+
+  ##### 2.1.1 ROS2
+
+  ```bash
+  user@~: mkdir -p ros_ws/src
+  user@~: cd ros_ws/src
+  user@ros_ws/src: git clone https://github.com/RosProBridge/RosProBridge.git
+  user@ros_ws: cd ..
+  user@ros_ws: rosdep install --from-paths src --ignore-src -r
+  user@ros_ws: colcon build
+  ```
+
+  #### 2.1.2 ROS1
+
+  ```bash
+  user@user~:$ mkdir -p ros_ws/src
+  user@user:$ cd ros_ws
+  user@user:ros_ws$ catkin init
+  user@user:ros_ws$ cd src/
+  user@user:ros_ws/src$ git clone https://github.com/RosProBridge/RosProBridge.git
+  user@user:ros_ws$ cd ..
+  user@user:ros_ws$ rosdep install --from-paths src --ignore-src -r
+  user@user:ros_ws$ catkin build
+  ```
+
+  ### 2.2 Starting the node
+
+  Once pro_bridge is installed, you can start the node using the following commands:
+
+  #### 2.2.1 ROS2 
+
+    ```bash
+    user@user:ros_ws$ source install/setup.bash
+    user@user:ros_ws$ ros2 run pro_bridge bridge.py src/RosProBridge/config/recv.json
+    ```
+
+  #### 2.2.2 ROS1
+
+  ```bash
+  user@user:ros_ws$ source devel/setup.bash
+  user@user:ros_ws$ rosrun pro_bridge bridge.py src/RosProBridge/config/recv.json
+  ```
+
+
+### 3. Config Example
 ----
 Config example:
 
@@ -32,9 +91,9 @@ Config example:
 }
 ```
 
-### 2. Advanced params
+### 4. Advanced params
 
-#### 2.1 qos
+#### 4.1 qos
 
 qos value may be as int
 ```
@@ -65,7 +124,7 @@ as dict:
 
 Ensure that the "qos" parameter can be used to allow publishing messages from ROS1 to ROS2 with the specified QoS settings.
 
-#### 2.2 rate
+#### 4.2 rate
 
 ```
 "rate": 10
@@ -73,7 +132,7 @@ Ensure that the "qos" parameter can be used to allow publishing messages from RO
 
 Target posting frequency
 
-#### 2.3 compression_level:
+#### 4.3 compression_level:
 
 ```
 "compression_level": 0 # range[0:9]
@@ -81,7 +140,7 @@ Target posting frequency
 
 If the value is 0, there will be no compression; otherwise, the ROS message will be compressed
 
-#### 2.4 latch:
+#### 4.4 latch:
 
 ```
 "latch": false
