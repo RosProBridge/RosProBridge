@@ -14,8 +14,8 @@ class BridgeClientTCP:
         self.cb = []
 
         self.__context = zmq.Context()
-        self.__socket = self.__context.socket(zmq.PUB)
-        self.__socket.bind(f"tcp://{self.__hostname}:{self.__port}")
+        self.__socket = self.__context.socket(zmq.PUSH)
+        self.__socket.connect(f"tcp://{self.__hostname}:{self.__port}")
         self.__monitor = self.__socket.get_monitor_socket()
         Thread(target=self.__monitor_socket, daemon=True).start()
 
@@ -24,7 +24,8 @@ class BridgeClientTCP:
             event = recv_monitor_message(self.__monitor)
 
             value = event.get("event")
-            if value == zmq.Event.ACCEPTED:
+            # if value == zmq.Event.ACCEPTED:
+            if value == zmq.Event.HANDSHAKE_SUCCEEDED:
                 self.__connected = True
                 for cb in self.cb:
                     cb(self)
