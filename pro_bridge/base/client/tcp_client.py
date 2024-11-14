@@ -4,6 +4,13 @@ from zmq.utils.monitor import recv_monitor_message
 from threading import Thread
 from urllib.parse import SplitResult
 
+ZMQ_INT_VERSION = int(zmq.__version__.split('.')[0])
+if ZMQ_INT_VERSION <= 22:
+    ZMQ_EVENT_HANDSHAKE_SUCCEEDED = zmq.EVENT_HANDSHAKE_SUCCEEDED
+    ZMQ_EVENT_DISCONNECTED = zmq.EVENT_DISCONNECTED
+else:
+    ZMQ_EVENT_HANDSHAKE_SUCCEEDED = zmq.Event.HANDSHAKE_SUCCEEDED
+    ZMQ_EVENT_DISCONNECTED = zmq.Event.DISCONNECTED
 
 class BridgeClientTCP:
     __connected = False
@@ -24,12 +31,11 @@ class BridgeClientTCP:
             event = recv_monitor_message(self.__monitor)
 
             value = event.get("event")
-            # if value == zmq.Event.ACCEPTED:
-            if value == zmq.Event.HANDSHAKE_SUCCEEDED:
+            if value == ZMQ_EVENT_HANDSHAKE_SUCCEEDED:
                 self.__connected = True
                 for cb in self.cb:
                     cb(self)
-            elif value == zmq.Event.DISCONNECTED:
+            elif value == ZMQ_EVENT_DISCONNECTED:
                 self.__connected = False
 
     def Stop(self):
