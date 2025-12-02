@@ -40,7 +40,8 @@ class BridgeSubscriberRos1(BridgeSubscriber):
             "v": 1,
             "t": m_type,
             "n": m_name,
-            "c": self.compression_level
+            "c": self.compression_level,
+            "l": self.is_latch_msg(m_data)
         }
         if m_qos is not None:
             j_data["q"] = m_qos  # Allow to publish messages from ros1 to ros2 with specified QOS
