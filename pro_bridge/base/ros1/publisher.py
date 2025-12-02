@@ -30,7 +30,12 @@ class BridgePublisherRos1(BridgePublisher):
         super().__init__(bridge)
 
     def create_pub(self, b_msg: dict) -> rospy.Publisher:
-        publisher = rospy.Publisher(name=b_msg["n"], data_class=locate(b_msg["t"]), queue_size=1)
+        publisher = rospy.Publisher(
+            name=b_msg["n"],
+            data_class=locate(b_msg["t"]),
+            queue_size=1,
+            latch=bool(b_msg.get("l", False)),
+        )
         self.publishers.update({b_msg["n"]: publisher})
         rospy.loginfo('Subscribed on topic "' + b_msg["n"] + '".')
         return publisher
