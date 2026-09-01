@@ -11,6 +11,8 @@ class ProBridgeRos1(ProBridgeBase):
         self.logwarn = rospy.logwarn
         self.logerr = rospy.logerr
         self.logdebug = rospy.logdebug
+        self._services_warned = False
+        self.subscriber = None
         super().__init__(cfg)
         rospy.on_shutdown(self.destroy)
         rospy.spin()
@@ -28,7 +30,14 @@ class ProBridgeRos1(ProBridgeBase):
     def create_bridge_subscriber(self, base, clients, t):
         self.subscriber = BridgeSubscriberRos1(base, clients, t)
 
+    def create_bridge_service(self, base, clients, s):
+        if not self._services_warned:
+            self.logwarn("ROS service bridging is supported on ROS2 only; ignoring services in config")
+            self._services_warned = True
+
     def destroy(self, *args):
-        self.publisher.Stop()
-        self.subscriber.Stop()
+        if getattr(self, "publisher", None) is not None:
+            self.publisher.Stop()
+        if getattr(self, "subscriber", None) is not None:
+            self.subscriber.Stop()
         rospy.signal_shutdown(0)

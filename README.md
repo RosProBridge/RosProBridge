@@ -9,8 +9,9 @@ Collects messages on one machine, sends them via 0MQ to machines from a list of 
 - [Advanced params](#4-advanced-params)
   - [qos](#41-qos)
   - [rate](#42-rate)
-  - [compression_level](#43-compression_level)
+  - [compression_level](#43-compression-level)
   - [latch](#44-latch)
+- [Services (ROS2)](#5-services-ros2)
 
 ### 1. Dependencies
   - CycloneDDS is required for communication between 
@@ -77,15 +78,25 @@ Config example:
 {
   "id": "some_id_value",
   "host": "0.0.0.0:47777",
+  "public_host": "192.168.1.5:47777",
   "published": [
     {
-      "hosts":["192.168.1.1:47777"],
+      "hosts": ["192.168.1.1:47776"],
+      "topics": [
         {
           "name": "/lidar/fl/rslidar_points",
           "type": "sensor_msgs.msg.PointCloud2",
           "qos": 10,
           "compression_level": 1
-        },
+        }
+      ],
+      "services": [
+        {
+          "name": "/example/set_bool",
+          "type": "std_srvs.srv.SetBool",
+          "timeout": 5.0
+        }
+      ]
     }
   ]
 }
@@ -147,3 +158,38 @@ If the value is 0, there will be no compression; otherwise, the ROS message will
 ```
 
 If the value is true, last received ROS message will be sent to newly connected clients
+
+### 5. Services (ROS2)
+
+Service bridging is **ROS2 only** (same ROS2 on both peers). It reuses the existing ZMQ PUSH/PULL listen port; requests and responses are multiplexed with topic traffic.
+
+#### How it works
+
+1. On the **proxy** machine, list the service under `published[].services`. ProBridge advertises that service locally.
+2. When a local client calls it, ProBridge sends a request packet to `hosts` and waits for a response.
+3. On the **provider** machine, no `services` config is required. ProBridge receives the request, calls the real local ROS service, and pushes the response back to `reply_to` (`public_host` of the proxy).
+
+#### Config fields
+
+| Field | Where | Description |
+|-------|--------|-------------|
+| `public_host` | top-level | Reachable `ip:port` of this node's listen socket. Required for service proxies when `host` binds `0.0.0.0`. |
+| `services[].name` | published group | Service name to advertise locally (proxy) / call remotely (provider) |
+| `services[].type` | published group | Python type path, e.g. `std_srvs.srv.SetBool` |
+| `services[].timeout` | published group | Optional wait timeout in seconds (default `5.0`) |
+| `services[].compression_level` | published group | Optional payload compression (same as topics) |
+
+Provider side example (listen only; real service runs locally):
+
+```json
+{
+  "id": "provider",
+  "host": "0.0.0.0:47776",
+  "published": [
+    {
+      "hosts": [],
+      "topics": []
+    }
+  ]
+}
+```

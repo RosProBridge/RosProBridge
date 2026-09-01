@@ -1,1 +1,2 @@
 from .tcp_client import BridgeClientTCP
+from .client_registry import BridgeClientRegistry

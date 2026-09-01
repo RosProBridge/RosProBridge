@@ -1,6 +1,7 @@
 {
   "id": "demo",
   "host": "0.0.0.0:47777",
+  "public_host": "127.0.0.1:47777",
   "published": [
     {
       "hosts": [
@@ -39,6 +40,13 @@
           "name": "/header",
           "type": "std_msgs.msg.Header",
           "latch": true
+        }
+      ],
+      "services": [
+        {
+          "name": "/example/set_bool",
+          "type": "std_srvs.srv.SetBool",
+          "timeout": 5.0
         }
       ]
     }

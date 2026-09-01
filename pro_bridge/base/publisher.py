@@ -33,7 +33,7 @@ class BridgePublisher(ABC):
 
     def on_msg(self, msg: bytes):
         """
-        Decode and publish message to ROS
+        Decode and publish message to ROS, or demux service request/response packets.
         """
         try:
             json_length = int.from_bytes(msg[:2], byteorder="little")
@@ -42,23 +42,47 @@ class BridgePublisher(ABC):
             self.bridge.logwarn("Invalid received message. Failed to parse: {}".format(str(e)))
             return
 
-        topic_name = json_data.get("n", "")
-
-        if topic_name in self.__ignorable_topics:
-            return
+        kind = json_data.get("k")
+        name = json_data.get("n", "")
 
         compression_level = json_data.get("c")
         if (compression_level is None) or (not isinstance(compression_level, int)):
+            if kind in (1, 2):
+                self.bridge.logerr(
+                    "Compression level field was not filled for the service packet {}. Dropping".format(name)
+                )
+                return
             self.bridge.logerr(
-                "Compression level field was not filled for the topic {}. Added to ignore list".format(topic_name)
+                "Compression level field was not filled for the topic {}. Added to ignore list".format(name)
             )
-            self.__ignorable_topics.append(topic_name)
+            self.__ignorable_topics.append(name)
             return
 
         if compression_level > 0:
-            binary_packet = gzip.decompress(msg[2+json_length:])
+            binary_packet = gzip.decompress(msg[2 + json_length :])
         else:
-            binary_packet = msg[2+json_length:]
+            binary_packet = msg[2 + json_length :]
+
+        if kind == 1:
+            handler = getattr(self.bridge, "handle_service_request", None)
+            if handler is None:
+                self.bridge.logwarn("Received service request but this bridge does not support services")
+                return
+            handler(json_data, binary_packet)
+            return
+
+        if kind == 2:
+            handler = getattr(self.bridge, "handle_service_response", None)
+            if handler is None:
+                self.bridge.logwarn("Received service response but this bridge does not support services")
+                return
+            handler(json_data, binary_packet)
+            return
+
+        topic_name = name
+
+        if topic_name in self.__ignorable_topics:
+            return
 
         # allow to recive messages from ROS2 in ROS1 | from ROS1 in ROS2
         if str(json_data.get("v")) != os.environ["ROS_VERSION"]:
