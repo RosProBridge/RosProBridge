@@ -28,7 +28,17 @@ class ProBridgeRos1(ProBridgeBase):
     def create_bridge_subscriber(self, base, clients, t):
         self.subscriber = BridgeSubscriberRos1(base, clients, t)
 
+    def create_bridge_service_client(self, base, clients, s):
+        raise NotImplementedError("Services are not supported in ROS1 yet")
+
+    def create_remote_service(self, srv_name: str, srv_type: str, tcp_clients: list, timeout: float):
+        raise NotImplementedError("Services are not supported in ROS1 yet")
+
+    def send_service_failure(self, header: dict, reason: str, tcp_clients: list):
+        self.logwarn("Service {}: {} (services are not supported in ROS1 yet)".format(header.get("n", ""), reason))
+
     def destroy(self, *args):
         self.publisher.Stop()
-        self.subscriber.Stop()
+        if hasattr(self, "subscriber"):  # a config may have services only
+            self.subscriber.Stop()
         rospy.signal_shutdown(0)

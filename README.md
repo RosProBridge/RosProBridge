@@ -11,6 +11,7 @@ Collects messages on one machine, sends them via 0MQ to machines from a list of 
   - [rate](#42-rate)
   - [compression_level](#43-compression_level)
   - [latch](#44-latch)
+- [Services](#5-services)
 
 ### 1. Dependencies
   - CycloneDDS is required for communication between 
@@ -147,3 +148,48 @@ If the value is 0, there will be no compression; otherwise, the ROS message will
 ```
 
 If the value is true, last received ROS message will be sent to newly connected clients
+
+### 5. Services
+
+> ROS2 only for now; ROS1 ignores services with a warning.
+
+Services work in both directions, like topics:
+
+- **Served by the remote side** (e.g. [UnityBridge](https://github.com/RosProBridge/UnityBridge) `ProBridgeService`), called from ROS: nothing to configure. The remote side advertises the service (on start and on every connection); the bridge creates it in ROS on the first advertisement, like a publisher on the first message. The advertisement carries the port of the remote server (`"p"`), the bridge takes the remote IP from the connection and sends the calls there, so the remote side does not have to be in `hosts`.
+- **Served in ROS**, called by the remote side (UnityBridge `ProBridgeServiceClient`): list the service in `services` of a `published` group, as topics sent to the remote side. The response goes back to the caller (same `"p"` + connection IP); `hosts` of the group are used only if the request has no `"p"`.
+
+```json
+{
+  "id": "sim",
+  "host": "0.0.0.0:47778",
+  "published": [
+    {
+      "hosts": [],
+      "topics": [],
+      "services": [
+        {
+          "name": "/map/save",
+          "type": "std_srvs.srv.Trigger",
+          "timeout": 5.0
+        }
+      ]
+    }
+  ]
+}
+```
+
+- `name`, `type`: service name and type (`<package>.srv.<Service>`).
+- `timeout`: seconds to wait for the ROS service, default `5.0`.
+- `compression_level`: compression of the response, as for topics.
+
+A call that fails in the bridge (remote side not connected, no response within 5 s, ROS service not available or not listed in the config) gets a default response with `success = false` and the reason in `message`, if the response has these fields (std_srvs/Trigger, SetBool and alike).
+
+Examples with the services of [UnityBridge](https://github.com/RosProBridge/UnityBridge) (Scene Reload, Sim Pause):
+
+```bash
+ros2 service call /sim/reload std_srvs/srv/Trigger
+ros2 service call /sim/pause std_srvs/srv/SetBool "{data: true}"    # pause
+ros2 service call /sim/pause std_srvs/srv/SetBool "{data: false}"   # resume
+```
+
+Protocol: service messages use the message header with extra fields: the kind `"k"` (`"adv"` advertisement, `"req"` request, `"res"` response), the call `"id"` (a response carries the id of its request) and, in advertisements and requests, `"p"` - the port to answer to at the sender's IP. `n` is the service name, `t` the service type, the payload is the CDR-serialized `<Service>_Request` / `<Service>_Response`. Calls run in a reentrant callback group on a multi-threaded executor, so a pending call blocks neither topics nor other calls.

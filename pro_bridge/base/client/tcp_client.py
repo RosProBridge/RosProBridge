@@ -1,7 +1,7 @@
 import zmq
 
 from zmq.utils.monitor import recv_monitor_message
-from threading import Thread
+from threading import Thread, Lock
 from urllib.parse import SplitResult
 
 ZMQ_INT_VERSION = int(zmq.__version__.split('.')[0])
@@ -19,6 +19,8 @@ class BridgeClientTCP:
         self.__hostname = host.hostname
         self.__port = host.port
         self.cb = []
+        # Topics and service calls send from different executor threads; zmq sockets are not thread-safe.
+        self.__send_lock = Lock()
 
         self.__context = zmq.Context()
         self.__socket = self.__context.socket(zmq.PUSH)
@@ -38,6 +40,14 @@ class BridgeClientTCP:
             elif value == ZMQ_EVENT_DISCONNECTED:
                 self.__connected = False
 
+    @property
+    def hostname(self) -> str:
+        return self.__hostname
+
+    @property
+    def port(self) -> int:
+        return self.__port
+
     def Stop(self):
         try:
             if self.__socket != None:
@@ -52,7 +62,8 @@ class BridgeClientTCP:
     def send(self, data):
         if self.__connected:
             try:
-                self.__socket.send(data)
+                with self.__send_lock:
+                    self.__socket.send(data)
                 return True
             except Exception as e:
                 self.__connected = False

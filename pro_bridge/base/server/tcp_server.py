@@ -21,5 +21,9 @@ class BridgeServerTCP:
 
     def __receive(self):
        while not self.__disposed:
-            message = self.__socket.recv()
-            self.cb(message)
+            frame = self.__socket.recv(copy=False)
+            try:
+                peer = frame.get("Peer-Address")  # sender IP, used to answer service calls
+            except Exception:
+                peer = None
+            self.cb(frame.bytes, peer)

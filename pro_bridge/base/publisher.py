@@ -3,9 +3,10 @@ import json
 import gzip
 
 from abc import ABC, abstractmethod
-from typing import Union
+from typing import Optional, Union
 from typing import TYPE_CHECKING
 from base.server import BridgeServerTCP
+from base.service import KIND_ADVERTISE, KIND_REQUEST, KIND_RESPONSE
 
 if TYPE_CHECKING:
     from base.ros1.node import ProBridgeRos1
@@ -31,9 +32,9 @@ class BridgePublisher(ABC):
     def deserialize_ros_message(self, binary_msg: bytes, msg_type: str):
         """Deserialize ROS message"""
 
-    def on_msg(self, msg: bytes):
+    def on_msg(self, msg: bytes, peer: Optional[str] = None):
         """
-        Decode and publish message to ROS
+        Decode and publish message to ROS. `peer` is the sender IP (if known).
         """
         try:
             json_length = int.from_bytes(msg[:2], byteorder="little")
@@ -59,6 +60,17 @@ class BridgePublisher(ABC):
             binary_packet = gzip.decompress(msg[2+json_length:])
         else:
             binary_packet = msg[2+json_length:]
+
+        kind = json_data.get("k")
+        if kind == KIND_ADVERTISE:
+            self.bridge.on_service_advertise(json_data, peer)
+            return
+        if kind == KIND_REQUEST:
+            self.bridge.on_service_request(json_data, binary_packet, peer)
+            return
+        if kind == KIND_RESPONSE:
+            self.bridge.on_service_response(json_data, binary_packet)
+            return
 
         # allow to recive messages from ROS2 in ROS1 | from ROS1 in ROS2
         if str(json_data.get("v")) != os.environ["ROS_VERSION"]:
