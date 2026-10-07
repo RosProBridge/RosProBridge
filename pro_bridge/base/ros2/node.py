@@ -1,6 +1,7 @@
 import rclpy
 
 from rclpy.node import Node
+from rclpy.parameter import Parameter
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from base.node import ProBridgeBase
@@ -12,7 +13,12 @@ from base.service import make_packet, send_to_clients, KIND_RESPONSE
 
 class ProBridgeRos2(ProBridgeBase, Node):
     def __init__(self, cfg: dict):
-        Node.__init__(self, "ProBridge_" + cfg["id"])  # type: ignore
+        # The bridge always runs on system time: it often publishes /clock itself, and with use_sim_time it would
+        # subscribe to it — every message wakes the MultiThreadedExecutor, which busy-spins and starves the receive
+        # thread (topics lose 10-30% of messages, the bridge takes a full core). Timestamps come from the sender anyway.
+        Node.__init__(
+            self, "ProBridge_" + cfg["id"], parameter_overrides=[Parameter("use_sim_time", value=False)]
+        )  # type: ignore
         self.loginfo = self.get_logger().info
         self.logwarn = self.get_logger().warning
         self.logerr = self.get_logger().error
